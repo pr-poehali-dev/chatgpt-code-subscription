@@ -133,8 +133,8 @@ const Editor = () => {
                           <Icon name="Copy" size={14} />
                         </Button>
                       </div>
-                      <pre className="bg-black/40 border border-white/10 rounded p-3 overflow-x-auto text-xs">
-                        <code className="font-mono text-green-400">{msg.code}</code>
+                      <pre className="bg-gradient-to-br from-slate-900 to-slate-800 border border-violet-500/20 rounded p-3 overflow-x-auto text-xs">
+                        <code className="font-mono text-cyan-300">{msg.code}</code>
                       </pre>
                     </div>
                   )}
@@ -236,8 +236,8 @@ const Editor = () => {
                         </Button>
                       </div>
                     </div>
-                    <pre className="bg-black/60 border border-white/10 rounded-lg p-4 overflow-x-auto">
-                      <code className="text-sm font-mono text-green-400">{msg.code}</code>
+                    <pre className="bg-gradient-to-br from-slate-900 to-slate-800 border border-violet-500/20 rounded-lg p-4 overflow-x-auto">
+                      <code className="text-sm font-mono text-cyan-300">{msg.code}</code>
                     </pre>
                   </Card>
                 ))}
