@@ -11,6 +11,8 @@ const Editor = () => {
   const [prompt, setPrompt] = useState("");
   const [language, setLanguage] = useState<"python" | "lua">("python");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -20,36 +22,62 @@ const Editor = () => {
     setPrompt("");
     setIsGenerating(true);
     
+    const OPENAI_KEY = localStorage.getItem('openai_key') || '';
+    
+    if (!OPENAI_KEY) {
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Добавь OpenAI API ключ в настройках (кнопка ⚙️ справа сверху)',
+      }]);
+      setIsGenerating(false);
+      return;
+    }
+    
     try {
-      const response = await fetch('https://functions.poehali.dev/985dc458-c911-4afc-a129-cafefa0ef13f', {
+      const systemPrompt = `You are an expert ${language.toUpperCase()} developer. Generate clean, working, well-commented ${language.toUpperCase()} code based on user requests. Only return the code, no explanations or markdown formatting. Make sure the code is syntactically correct and follows best practices.`;
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_KEY}`
         },
         body: JSON.stringify({
-          prompt: userMessage,
-          language: language
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: 0.7,
+          max_tokens: 1500
         })
       });
 
       const data = await response.json();
       
-      if (response.ok && data.code) {
+      if (response.ok && data.choices && data.choices[0]) {
+        let code = data.choices[0].message.content.trim();
+        
+        if (code.startsWith('```')) {
+          const lines = code.split('\n');
+          code = lines.slice(1, -1).join('\n');
+        }
+        
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: 'Готово! Вот твой код:',
-          code: data.code 
+          code: code 
         }]);
       } else {
         setMessages(prev => [...prev, { 
           role: 'assistant', 
-          content: 'Ошибка: ' + (data.error || 'Не удалось сгенерировать код. Проверь, что OpenAI API ключ добавлен в настройках.'),
+          content: 'Ошибка: ' + (data.error?.message || 'Не удалось сгенерировать код'),
         }]);
       }
     } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Ошибка соединения с сервером. Попробуй позже.',
+        content: 'Ошибка: ' + (error instanceof Error ? error.message : 'Проверь интернет-соединение'),
       }]);
     } finally {
       setIsGenerating(false);
@@ -75,13 +103,60 @@ const Editor = () => {
               <Icon name="Home" className="mr-2" size={18} />
               Главная
             </Button>
-            <Button variant="ghost" onClick={() => navigate("/admin")}>
+            <Button variant="ghost" onClick={() => setShowSettings(!showSettings)}>
               <Icon name="Settings" className="mr-2" size={18} />
+              API Ключ
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/admin")}>
+              <Icon name="Shield" className="mr-2" size={18} />
               Админ
             </Button>
           </div>
         </div>
       </nav>
+
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <Card className="glass p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-heading font-bold">Настройки API</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowSettings(false)}>
+                <Icon name="X" size={20} />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  OpenAI API Ключ
+                </label>
+                <Textarea
+                  placeholder="sk-proj-..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="bg-white/5 border-white/10 font-mono text-sm"
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Получи ключ на{' '}
+                  <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    platform.openai.com
+                  </a>
+                </p>
+              </div>
+              <Button 
+                className="w-full gradient-bg"
+                onClick={() => {
+                  localStorage.setItem('openai_key', apiKey);
+                  setShowSettings(false);
+                }}
+              >
+                <Icon name="Save" className="mr-2" size={18} />
+                Сохранить
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         <div className="w-1/2 border-r border-white/10 flex flex-col">

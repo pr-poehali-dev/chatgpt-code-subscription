@@ -29,15 +29,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'body': json.dumps({'error': 'Method not allowed'})
         }
     
-    try:
-        import openai
-    except ImportError:
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'OpenAI package not installed'})
-        }
-    
     body_data = json.loads(event.get('body', '{}'))
     prompt: str = body_data.get('prompt', '')
     language: str = body_data.get('language', 'python')
@@ -57,24 +48,55 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'body': json.dumps({'error': 'OpenAI API key not configured'})
         }
     
-    client = openai.OpenAI(api_key=api_key)
+    import requests
     
     system_prompt = f"""You are an expert {language.upper()} developer. 
 Generate clean, working, well-commented {language.upper()} code based on user requests.
 Only return the code, no explanations or markdown formatting.
 Make sure the code is syntactically correct and follows best practices."""
     
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.7,
-        max_tokens=1500
-    )
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
     
-    generated_code = response.choices[0].message.content.strip()
+    payload = {
+        'model': 'gpt-3.5-turbo',
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': prompt}
+        ],
+        'temperature': 0.7,
+        'max_tokens': 1500
+    }
+    
+    try:
+        api_response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers=headers,
+            json=payload,
+            timeout=30,
+            proxies={
+                'http': 'http://proxy.toolforge.org:8080',
+                'https': 'http://proxy.toolforge.org:8080'
+            }
+        )
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({'error': f'Network error: {str(e)}'})
+        }
+    
+    if api_response.status_code != 200:
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({'error': f'OpenAI API error: {api_response.text}'})
+        }
+    
+    response_data = api_response.json()
+    generated_code = response_data['choices'][0]['message']['content'].strip()
     
     if generated_code.startswith('```'):
         lines = generated_code.split('\n')
