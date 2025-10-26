@@ -20,18 +20,40 @@ const Editor = () => {
     setPrompt("");
     setIsGenerating(true);
     
-    setTimeout(() => {
-      const exampleCode = language === "python" 
-        ? `# Generated Python code\ndef process_data(items):\n    result = []\n    for item in items:\n        if item > 0:\n            result.append(item * 2)\n    return result\n\ndata = [1, -2, 3, 4, -5]\nprint(process_data(data))`
-        : `-- Generated Lua code\nfunction processData(items)\n    local result = {}\n    for _, item in ipairs(items) do\n        if item > 0 then\n            table.insert(result, item * 2)\n        end\n    end\n    return result\nend\n\nlocal data = {1, -2, 3, 4, -5}\nprint(processData(data))`;
+    try {
+      const response = await fetch('https://functions.poehali.dev/985dc458-c911-4afc-a129-cafefa0ef13f', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: userMessage,
+          language: language
+        })
+      });
+
+      const data = await response.json();
       
+      if (response.ok && data.code) {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: 'Готово! Вот твой код:',
+          code: data.code 
+        }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: 'Ошибка: ' + (data.error || 'Не удалось сгенерировать код. Проверь, что OpenAI API ключ добавлен в настройках.'),
+        }]);
+      }
+    } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Готово! Вот твой код:',
-        code: exampleCode 
+        content: 'Ошибка соединения с сервером. Попробуй позже.',
       }]);
+    } finally {
       setIsGenerating(false);
-    }, 1500);
+    }
   };
 
   const handleCopy = (code: string) => {

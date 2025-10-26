@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "name": "Generate Python code",
+      "method": "POST",
+      "body": {
+        "prompt": "Create a function to sort a list of numbers",
+        "language": "python"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "code": "string",
+        "language": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Missing prompt",
+      "method": "POST",
+      "body": {
+        "language": "lua"
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
